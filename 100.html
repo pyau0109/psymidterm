@@ -1,41 +1,747 @@
-<script>
-    class PsychologyQuizApp {
-        startQuiz(mode) {
-            this.currentMode = mode;
-            this.answers = {};
-            this.streak = 0;
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>普通心理學 期中考 100 題全能大複習</title>
 
-            if (mode === 'sequential') {
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            background: radial-gradient(circle at top center, #1e1b4b 0%, #0f172a 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.28);
+            transform: translateY(-1px);
+        }
+
+        .option-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .option-card:hover:not(.disabled) {
+            border-color: #6366f1;
+            background: rgba(99, 102, 241, 0.12);
+            transform: translateX(4px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Confetti Particles Canvas -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+    <!-- Navigation Header -->
+    <header class="border-b border-slate-800/80 glass-panel sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="app.showModeSelection()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-brain text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base md:text-lg bg-gradient-to-r from-indigo-200 via-white to-violet-200 bg-clip-text text-transparent">普通心理學期中考</h1>
+                    <p class="text-xs text-indigo-300/80 font-medium">100 題全能題庫刷題神將</p>
+                </div>
+            </div>
+
+            <!-- Controls & Quick Status -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="app.toggleMute()" id="mute-btn" class="glass-button p-2.5 rounded-xl text-slate-300 hover:text-white" title="聲音開關">
+                    <i class="fa-solid fa-volume-high text-sm"></i>
+                </button>
+                <button onclick="app.openGridModal()" class="glass-button px-3 py-2 rounded-xl text-xs font-medium text-indigo-200 flex items-center space-x-1.5 hover:text-white">
+                    <i class="fa-solid fa-grip text-indigo-400"></i>
+                    <span class="hidden sm:inline">答題矩陣</span>
+                    <span id="grid-progress-badge" class="ml-1 px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-[10px]">0/100</span>
+                </button>
+                <button onclick="app.showModeSelection()" class="glass-button px-3 py-2 rounded-xl text-xs font-medium text-slate-200 hover:text-white flex items-center space-x-1">
+                    <i class="fa-solid fa-house"></i>
+                    <span class="hidden sm:inline">回首頁</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main App Container -->
+    <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
+
+        <!-- ================= VIEW 1: MODE SELECTION ================= -->
+        <section id="view-mode-select" class="space-y-6 max-w-4xl mx-auto w-full py-4">
+            <div class="text-center space-y-3">
+                <span class="px-3 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-full text-xs font-semibold tracking-wide uppercase">General Psychology Midterm Prep</span>
+                <h2 class="text-2xl md:text-4xl font-black text-white tracking-tight">選擇您的 100 題複習模式</h2>
+                <p class="text-sm md:text-base text-slate-400 max-w-2xl mx-auto">完整收錄神經解剖、感知覺、發展心理學、大腦造影、神經傳導物質與完形心理學 100 題真題與 AI 補強題。</p>
+            </div>
+
+            <!-- Stats Overview Card -->
+            <div class="glass-panel rounded-2xl p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-4 border border-indigo-500/20">
+                <div class="text-center p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/50">
+                    <span class="text-xs text-slate-400 block mb-1">總題庫數</span>
+                    <span class="text-2xl font-black text-indigo-400">100 題</span>
+                </div>
+                <div class="text-center p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/50">
+                    <span class="text-xs text-slate-400 block mb-1">已掌握 (答對)</span>
+                    <span id="stat-mastered" class="text-2xl font-black text-emerald-400">0 題</span>
+                </div>
+                <div class="text-center p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/50">
+                    <span class="text-xs text-slate-400 block mb-1">錯題待清查</span>
+                    <span id="stat-wrong" class="text-2xl font-black text-rose-400">0 題</span>
+                </div>
+                <div class="text-center p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/50">
+                    <span class="text-xs text-slate-400 block mb-1">星號收藏</span>
+                    <span id="stat-bookmarked" class="text-2xl font-black text-amber-400">0 題</span>
+                </div>
+            </div>
+
+            <!-- Quiz Modes Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div onclick="app.startQuiz('sequential')" class="glass-panel p-5 rounded-2xl border border-indigo-500/30 hover:border-indigo-400 cursor-pointer group transition-all duration-300 hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between h-full">
+                    <div class="space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-300 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-list-ol text-lg"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white group-hover:text-indigo-300">順序刷題模式</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">按照第 1 至 100 題標準順序系統性研讀，建立紮實觀念。</p>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs font-semibold text-indigo-400 group-hover:text-indigo-300">
+                        <span>開始順序練習 (100題)</span>
+                        <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+
+                <div onclick="app.startQuiz('random')" class="glass-panel p-5 rounded-2xl border border-violet-500/30 hover:border-violet-400 cursor-pointer group transition-all duration-300 hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between h-full">
+                    <div class="space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-violet-300 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-shuffle text-lg"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white group-hover:text-violet-300">隨機挑戰模式</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">將 100 道考題打破順序隨機洗牌，真實檢驗考試應變能力。</p>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs font-semibold text-violet-400 group-hover:text-violet-300">
+                        <span>開始隨機挑戰</span>
+                        <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+
+                <div onclick="app.startQuiz('mistake')" class="glass-panel p-5 rounded-2xl border border-rose-500/30 hover:border-rose-400 cursor-pointer group transition-all duration-300 hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between h-full">
+                    <div class="space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-rose-600/30 border border-rose-500/40 flex items-center justify-center text-rose-300 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-bold text-white group-hover:text-rose-300">錯題特訓模式</h3>
+                            <span id="mistake-badge-count" class="px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold">0 題</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">針對歷史練習中曾答錯的題目進行重點清查防堵漏洞。</p>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs font-semibold text-rose-400 group-hover:text-rose-300">
+                        <span>進入錯題特訓</span>
+                        <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+
+                <div onclick="app.startQuiz('bookmarked')" class="glass-panel p-5 rounded-2xl border border-amber-500/30 hover:border-amber-400 cursor-pointer group transition-all duration-300 hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between h-full">
+                    <div class="space-y-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-600/30 border border-amber-500/40 flex items-center justify-center text-amber-300 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-star text-lg"></i>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-bold text-white group-hover:text-amber-300">星號收藏專區</h3>
+                            <span id="bookmark-badge-count" class="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold">0 題</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">單獨練習您標記星號收藏的精選難題與高頻考點。</p>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs font-semibold text-amber-400 group-hover:text-amber-300">
+                        <span>開始收藏複習</span>
+                        <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center pt-2">
+                <button onclick="app.clearProgress()" class="text-xs text-slate-500 hover:text-slate-400 flex items-center space-x-1 transition-colors">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>重置本地學習所有紀錄</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= VIEW 2: QUIZ INTERFACE ================= -->
+        <section id="view-quiz" class="hidden space-y-5 max-w-3xl mx-auto w-full">
+            <!-- Quiz Progress & Header Pill -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 border border-slate-700/60">
+                <div class="w-full sm:w-auto flex items-center justify-between sm:justify-start space-x-3">
+                    <span id="quiz-mode-tag" class="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold">
+                        順序刷題
+                    </span>
+                    <span id="quiz-progress-text" class="text-sm font-bold text-slate-200">
+                        第 <span id="current-q-index" class="text-indigo-400 text-lg">1</span> / <span id="total-q-count">100</span> 題
+                    </span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full sm:w-48 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                    <div id="quiz-progress-bar" class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+
+                <!-- Stat Counter Pills -->
+                <div class="flex items-center space-x-2">
+                    <div id="streak-pill" class="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-bold text-amber-400 flex items-center space-x-1">
+                        <span>🔥</span>
+                        <span id="streak-count">0</span>
+                        <span>連勝</span>
+                    </div>
+                    <button onclick="app.toggleBookmarkCurrent()" id="btn-bookmark" class="glass-button p-2 rounded-xl text-slate-400 hover:text-amber-400 transition-colors" title="標記收藏">
+                        <i class="fa-solid fa-star text-sm"></i>
+                    </button>
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-medium text-slate-300">
+                        得分：<span id="live-score" class="text-emerald-400 font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 border border-slate-700/80 shadow-2xl relative">
+                <div class="flex items-center justify-between text-xs">
+                    <span id="question-category" class="px-2.5 py-1 bg-violet-500/10 text-violet-300 border border-violet-500/20 rounded-md font-medium">
+                        單元類別
+                    </span>
+                    <span id="question-id-badge" class="text-slate-400 font-mono">
+                        Q#1 / 100
+                    </span>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 id="question-text" class="text-lg sm:text-xl font-bold text-white leading-relaxed tracking-wide">
+                        題目載入中...
+                    </h3>
+                </div>
+
+                <div id="options-container" class="space-y-3 pt-2"></div>
+
+                <div id="explanation-box" class="hidden p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 text-xs sm:text-sm space-y-1.5 animate-fade-in">
+                    <div class="flex items-center space-x-2 text-indigo-400 font-bold">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>觀念解析與考點：</span>
+                    </div>
+                    <p id="explanation-text" class="text-slate-300 leading-relaxed">
+                        解析載入中...
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 pt-1">
+                <button onclick="app.prevQuestion()" id="btn-prev" class="glass-button px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-chevron-left"></i>
+                    <span>上一題</span>
+                </button>
+
+                <div class="flex items-center space-x-2">
+                    <label class="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 cursor-pointer select-none">
+                        <input type="checkbox" id="chk-auto-next" onchange="app.toggleAutoNext()" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+                        <span>答對自動下一題</span>
+                    </label>
+                    <button onclick="app.finishQuiz()" class="px-3 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 text-xs sm:text-sm font-semibold">
+                        結算成績
+                    </button>
+                </div>
+
+                <button onclick="app.nextQuestion()" id="btn-next" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold flex items-center space-x-2 shadow-lg shadow-indigo-600/30">
+                    <span>下一題</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- ================= VIEW 3: RESULTS REPORT ================= -->
+        <section id="view-results" class="hidden space-y-6 max-w-4xl mx-auto w-full py-4">
+            <div class="glass-panel rounded-3xl p-6 sm:p-10 text-center space-y-6 border border-indigo-500/30 relative overflow-hidden">
+                <div class="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-indigo-500/10 blur-3xl rounded-full"></div>
+
+                <div class="space-y-2">
+                    <span id="result-badge" class="px-4 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs sm:text-sm font-bold inline-block">
+                        測驗完成！
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-black text-white">期中考 100 題大複習總成績</h2>
+                </div>
+
+                <div class="flex justify-center items-center py-2">
+                    <div class="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-slate-900/80 border-4 border-indigo-500/40 flex flex-col items-center justify-center shadow-2xl">
+                        <span id="result-score" class="text-4xl sm:text-5xl font-black text-white">0</span>
+                        <span class="text-xs text-slate-400 font-semibold mt-1">分 (正確率 <span id="result-percent">0</span>%)</span>
+                    </div>
+                </div>
+
+                <p id="result-eval-text" class="text-base sm:text-lg font-bold text-indigo-300 max-w-lg mx-auto">評語載入中...</p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto pt-2">
+                    <div class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700">
+                        <span class="text-xs text-slate-400 block">總題數</span>
+                        <span id="result-total-q" class="text-lg font-bold text-white">100</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700">
+                        <span class="text-xs text-slate-400 block">答對題數</span>
+                        <span id="result-correct-q" class="text-lg font-bold text-emerald-400">0</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700">
+                        <span class="text-xs text-slate-400 block">答錯題數</span>
+                        <span id="result-wrong-q" class="text-lg font-bold text-rose-400">0</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700">
+                        <span class="text-xs text-slate-400 block">未作答</span>
+                        <span id="result-unanswered-q" class="text-lg font-bold text-slate-400">0</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center gap-3 pt-4">
+                    <button onclick="app.startQuiz('mistake')" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-rose-600/30 flex items-center space-x-2">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>針對本次錯題重測</span>
+                    </button>
+                    <button onclick="app.startQuiz(app.currentMode)" class="glass-button px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-200 hover:text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>重新測驗本模式</span>
+                    </button>
+                    <button onclick="app.showModeSelection()" class="glass-button px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-200 hover:text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-house"></i>
+                        <span>回到模式選擇</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl p-6 space-y-4 border border-slate-700">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-white">題目答題明細與檢討</h3>
+                        <p class="text-xs text-slate-400">核對標準答案與詳細觀念解析</p>
+                    </div>
+
+                    <div class="flex rounded-xl bg-slate-800/80 p-1 border border-slate-700 text-xs">
+                        <button onclick="app.filterReview('all')" id="tab-review-all" class="px-3 py-1.5 rounded-lg font-medium text-white bg-indigo-600">
+                            全部 (<span id="count-rev-all">0</span>)
+                        </button>
+                        <button onclick="app.filterReview('wrong')" id="tab-review-wrong" class="px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white">
+                            僅錯題 (<span id="count-rev-wrong">0</span>)
+                        </button>
+                        <button onclick="app.filterReview('bookmarked')" id="tab-review-bookmarked" class="px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white">
+                            標記星號 (<span id="count-rev-bm">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <div id="review-list-container" class="space-y-4 max-h-[600px] overflow-y-auto pr-1"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-grid" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel max-w-3xl w-full rounded-3xl p-6 space-y-5 border border-indigo-500/30 shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-grip text-indigo-400"></i>
+                        <span>普通心理學 100 題全速查矩陣</span>
+                    </h3>
+                    <p class="text-xs text-slate-400">綠色：答對 | 紅色：答錯 | 藍框：當前位置 | ⭐：已標記</p>
+                </div>
+                <button onclick="app.closeGridModal()" class="text-slate-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="grid-matrix-container" class="grid grid-cols-5 sm:grid-cols-10 gap-2 overflow-y-auto p-1 flex-1"></div>
+
+            <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                <span>提示：點擊任何題號可直接跳轉作答</span>
+                <button onclick="app.closeGridModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium">
+                    關閉選單
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-2xl bg-indigo-600 text-white font-semibold text-xs shadow-2xl opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center space-x-2">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toast-msg">訊息發送</span>
+    </div>
+
+    <script>
+        const QUESTIONS_DATA = [
+            {
+                id: 1,
+                q: "1. 海馬迴（Hippocampus）主要與哪一項功能有關？",
+                options: ["A. 平衡與協調", "B. 記憶形���與空間記憶", "C. 呼吸控制", "D. 肌肉收縮"],
+                answerIndex: 1,
+                category: "神經與生理心理學",
+                explanation: "海馬迴位於大腦顳葉內側，是形成新長期記憶與空間導航記憶的核心結構。"
+            },
+            {
+                id: 2,
+                q: "2. 杏仁核（Amygdala）通常與哪一種心理功能關係最密切？",
+                options: ["A. 情緒處理", "B. 語言發音", "C. 消化作用", "D. 骨骼生長"],
+                answerIndex: 0,
+                category: "神經與生理心理學",
+                explanation: "杏仁核是大腦邊緣系統的一部分，主要負責情緒的評估、處理與記憶（尤其是恐懼與怒氣）。"
+            },
+            {
+                id: 3,
+                q: "3. 下列哪一個是由軀體神經系統控制的？",
+                options: ["a. 心肌", "b. 表情肌", "c. 血管", "d. 消化系統肌肉"],
+                answerIndex: 1,
+                category: "周邊神經系統",
+                explanation: "軀體神經系統控制骨骼肌與隨意運動（如表情肌）；心肌、血管及消化肌則由自主神經系統控制。"
+            }
+        ];
+
+        class PsychologyQuizApp {
+            constructor() {
+                this.questions = QUESTIONS_DATA;
+                this.currentMode = 'sequential';
+                this.currentIndex = 0;
+                this.answers = {};
+                this.streak = 0;
+                this.wrongQIds = new Set();
+                this.bookmarkedQIds = new Set();
+                this.autoNext = false;
                 this.activeQuestionList = [...this.questions];
-                document.getElementById('quiz-mode-tag').innerText = '順序刷題';
-            } else if (mode === 'random') {
-                const shuffled = [...this.questions];
-                for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                }
-                this.activeQuestionList = shuffled;
-                document.getElementById('quiz-mode-tag').innerText = '隨機挑戰';
-            } else if (mode === 'mistake') {
-                if (this.wrongQIds.size === 0) {
-                    this.showToast('目前沒有錯題紀錄！非常優秀！');
-                    return;
-                }
-                this.activeQuestionList = this.questions.filter(q => this.wrongQIds.has(q.id));
-                document.getElementById('quiz-mode-tag').innerText = `錯題特訓 (${this.activeQuestionList.length}題)`;
-            } else if (mode === 'bookmarked') {
-                if (this.bookmarkedQIds.size === 0) {
-                    this.showToast('尚未標記任何星號題目！答題時點擊 ⭐ 即可收藏。');
-                    return;
-                }
-                this.activeQuestionList = this.questions.filter(q => this.bookmarkedQIds.has(q.id));
-                document.getElementById('quiz-mode-tag').innerText = `星號收藏 (${this.activeQuestionList.length}題)`;
+                this.currentQuestion = null;
+                this.reviewFilter = 'all';
+                this.isReviewMode = false;
+                this.showingExplanation = false;
+                this.gridOpen = false;
+                this.score = 0;
+                this.correctCount = 0;
+                this.totalAnswered = 0;
+                this.currentlySelectedOption = null;
+                this.init();
             }
 
-            this.currentIndex = 0;
-            document.getElementById('total-q-count').innerText = this.activeQuestionList.length;
-            this.showView('view-quiz');
-            this.renderQuestion();
+            init() {
+                this.updateStats();
+                this.renderGrid();
+                this.showModeSelection();
+            }
+
+            showModeSelection() {
+                document.getElementById('view-mode-select').classList.remove('hidden');
+                document.getElementById('view-quiz').classList.add('hidden');
+                document.getElementById('view-results').classList.add('hidden');
+                this.updateStats();
+            }
+
+            showView(viewId) {
+                document.getElementById('view-mode-select').classList.add('hidden');
+                document.getElementById('view-quiz').classList.add('hidden');
+                document.getElementById('view-results').classList.add('hidden');
+                document.getElementById(viewId).classList.remove('hidden');
+            }
+
+            startQuiz(mode) {
+                this.currentMode = mode;
+                this.answers = {};
+                this.streak = 0;
+
+                if (mode === 'sequential') {
+                    this.activeQuestionList = [...this.questions];
+                    document.getElementById('quiz-mode-tag').innerText = '順序刷題';
+                } else if (mode === 'random') {
+                    const shuffled = [...this.questions];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    this.activeQuestionList = shuffled;
+                    document.getElementById('quiz-mode-tag').innerText = '隨機挑戰';
+                } else if (mode === 'mistake') {
+                    if (this.wrongQIds.size === 0) {
+                        this.showToast('目前沒有錯題紀錄！非常優秀！');
+                        return;
+                    }
+                    this.activeQuestionList = this.questions.filter(q => this.wrongQIds.has(q.id));
+                    document.getElementById('quiz-mode-tag').innerText = `錯題特訓 (${this.activeQuestionList.length}題)`;
+                } else if (mode === 'bookmarked') {
+                    if (this.bookmarkedQIds.size === 0) {
+                        this.showToast('尚未標記任何星號題目！答題時點擊 ⭐ 即可收藏。');
+                        return;
+                    }
+                    this.activeQuestionList = this.questions.filter(q => this.bookmarkedQIds.has(q.id));
+                    document.getElementById('quiz-mode-tag').innerText = `星號收藏 (${this.activeQuestionList.length}題)`;
+                }
+
+                this.currentIndex = 0;
+                document.getElementById('total-q-count').innerText = this.activeQuestionList.length;
+                this.showView('view-quiz');
+                this.renderQuestion();
+            }
+
+            renderQuestion() {
+                const q = this.activeQuestionList[this.currentIndex];
+                if (!q) return;
+                this.currentQuestion = q;
+                const qIndex = this.currentIndex + 1;
+                document.getElementById('current-q-index').innerText = qIndex;
+                document.getElementById('question-id-badge').innerText = `Q#${q.id} / ${this.questions.length}`;
+                document.getElementById('question-category').innerText = q.category;
+                document.getElementById('question-text').innerText = q.q;
+                document.getElementById('quiz-progress-bar').style.width = `${(qIndex / this.activeQuestionList.length) * 100}%`;
+
+                const optionsContainer = document.getElementById('options-container');
+                optionsContainer.innerHTML = '';
+                q.options.forEach((option, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-card w-full text-left p-4 rounded-xl border border-slate-700/80 bg-slate-800/40 text-slate-200 hover:bg-slate-800/70';
+                    btn.innerHTML = `<div class="flex items-center space-x-3"><span class="flex-shrink-0 w-7 h-7 rounded-full bg-slate-700 text-xs font-bold flex items-center justify-center">${String.fromCharCode(65 + index)}</span><span class="leading-relaxed">${option}</span></div>`;
+                    btn.onclick = () => this.chooseAnswer(index);
+                    optionsContainer.appendChild(btn);
+                });
+
+                const explanationBox = document.getElementById('explanation-box');
+                explanationBox.classList.add('hidden');
+                document.getElementById('btn-next').disabled = false;
+                this.updateBookmarkButton();
+            }
+
+            chooseAnswer(index) {
+                const q = this.currentQuestion;
+                if (!q) return;
+                const selectedKey = `${q.id}`;
+                this.answers[selectedKey] = index;
+                const options = document.querySelectorAll('#options-container button');
+                options.forEach((btn, i) => {
+                    btn.classList.remove('border-emerald-500', 'border-rose-500', 'ring-2', 'ring-emerald-400/50', 'ring-rose-400/50');
+                    btn.classList.add('border-slate-700/80');
+                    if (i === q.answerIndex) {
+                        btn.classList.add('border-emerald-500', 'bg-emerald-500/10');
+                    }
+                    if (i === index && i !== q.answerIndex) {
+                        btn.classList.add('border-rose-500', 'bg-rose-500/10');
+                    }
+                    btn.disabled = true;
+                });
+
+                const isCorrect = index === q.answerIndex;
+                if (isCorrect) {
+                    this.streak += 1;
+                    this.showToast('答對了！');
+                } else {
+                    this.streak = 0;
+                    this.wrongQIds.add(q.id);
+                    this.showToast('答錯了，請看解析。');
+                }
+
+                document.getElementById('streak-count').innerText = this.streak;
+                document.getElementById('explanation-text').innerText = q.explanation;
+                document.getElementById('explanation-box').classList.remove('hidden');
+                document.getElementById('btn-next').disabled = false;
+            }
+
+            nextQuestion() {
+                if (this.currentIndex < this.activeQuestionList.length - 1) {
+                    this.currentIndex += 1;
+                    this.renderQuestion();
+                } else {
+                    this.finishQuiz();
+                }
+            }
+
+            prevQuestion() {
+                if (this.currentIndex > 0) {
+                    this.currentIndex -= 1;
+                    this.renderQuestion();
+                }
+            }
+
+            finishQuiz() {
+                this.showView('view-results');
+                const total = this.activeQuestionList.length;
+                let correct = 0;
+                let wrong = 0;
+                let unanswered = 0;
+
+                this.activeQuestionList.forEach(q => {
+                    const answer = this.answers[String(q.id)];
+                    if (answer === undefined) unanswered += 1;
+                    else if (answer === q.answerIndex) correct += 1;
+                    else wrong += 1;
+                });
+
+                const percent = total ? Math.round((correct / total) * 100) : 0;
+                document.getElementById('result-score').innerText = String(correct);
+                document.getElementById('result-percent').innerText = String(percent);
+                document.getElementById('result-total-q').innerText = String(total);
+                document.getElementById('result-correct-q').innerText = String(correct);
+                document.getElementById('result-wrong-q').innerText = String(wrong);
+                document.getElementById('result-unanswered-q').innerText = String(unanswered);
+                document.getElementById('result-eval-text').innerText = percent >= 80 ? '表現優秀，觀念掌握穩定！' : percent >= 60 ? '表現良好，仍可再補強幾個關鍵單元。' : '再多複習幾輪，穩定提升成績。';
+                this.updateStats();
+            }
+
+            toggleAutoNext() {
+                this.autoNext = document.getElementById('chk-auto-next').checked;
+            }
+
+            toggleMute() {
+                this.showToast('聲音開關已切換');
+            }
+
+            showToast(msg) {
+                const toast = document.getElementById('toast');
+                const toastMsg = document.getElementById('toast-msg');
+                toastMsg.innerText = msg;
+                toast.classList.remove('opacity-0');
+                toast.classList.add('opacity-100');
+                clearTimeout(this.toastTimer);
+                this.toastTimer = setTimeout(() => {
+                    toast.classList.remove('opacity-100');
+                    toast.classList.add('opacity-0');
+                }, 1800);
+            }
+
+            updateStats() {
+                document.getElementById('stat-mastered').innerText = `${this.questions.filter(q => this.answers[String(q.id)] === q.answerIndex).length} 題`;
+                document.getElementById('stat-wrong').innerText = `${this.wrongQIds.size} 題`;
+                document.getElementById('stat-bookmarked').innerText = `${this.bookmarkedQIds.size} 題`;
+                document.getElementById('mistake-badge-count').innerText = `${this.wrongQIds.size} 題`;
+                document.getElementById('bookmark-badge-count').innerText = `${this.bookmarkedQIds.size} 題`;
+            }
+
+            toggleBookmarkCurrent() {
+                if (!this.currentQuestion) return;
+                if (this.bookmarkedQIds.has(this.currentQuestion.id)) {
+                    this.bookmarkedQIds.delete(this.currentQuestion.id);
+                } else {
+                    this.bookmarkedQIds.add(this.currentQuestion.id);
+                }
+                this.updateBookmarkButton();
+                this.updateStats();
+            }
+
+            updateBookmarkButton() {
+                const btn = document.getElementById('btn-bookmark');
+                if (!this.currentQuestion) return;
+                if (this.bookmarkedQIds.has(this.currentQuestion.id)) {
+                    btn.classList.add('text-amber-400');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('text-amber-400');
+                    btn.classList.add('text-slate-400');
+                }
+            }
+
+            openGridModal() {
+                this.renderGrid();
+                document.getElementById('modal-grid').classList.remove('hidden');
+            }
+
+            closeGridModal() {
+                document.getElementById('modal-grid').classList.add('hidden');
+            }
+
+            renderGrid() {
+                const container = document.getElementById('grid-matrix-container');
+                container.innerHTML = '';
+                this.questions.forEach((q, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = q.id;
+                    button.className = 'h-10 rounded-lg border text-xs font-semibold';
+                    const answered = this.answers[String(q.id)];
+                    if (answered !== undefined) {
+                        button.classList.add(answered === q.answerIndex ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300' : 'bg-rose-500/20 border-rose-500 text-rose-300');
+                    } else {
+                        button.classList.add('bg-slate-800/80 border-slate-700 text-slate-300');
+                    }
+                    if (this.bookmarkedQIds.has(q.id)) {
+                        button.innerHTML = `${q.id}<span class="ml-1 text-amber-300">★</span>`;
+                    }
+                    button.onclick = () => {
+                        this.currentIndex = this.activeQuestionList.findIndex(item => item.id === q.id);
+                        if (this.currentIndex < 0) {
+                            this.currentIndex = 0;
+                        }
+                        this.renderQuestion();
+                        this.closeGridModal();
+                    };
+                    container.appendChild(button);
+                });
+            }
         }
-    }
-</script>
+
+        const app = new PsychologyQuizApp();
+    </script>
+</body>
+</html>
