@@ -445,7 +445,7 @@
             {
                 id: 1,
                 q: "1. 海馬迴（Hippocampus）主要與哪一項功能有關？",
-                options: ["A. 平衡與協調", "B. 記憶形���與空間記憶", "C. 呼吸控制", "D. 肌肉收縮"],
+                options: ["A. 平衡與協調", "B. 記憶形成與空間記憶", "C. 呼吸控制", "D. 肌肉收縮"],
                 answerIndex: 1,
                 category: "神經與生理心理學",
                 explanation: "海馬迴位於大腦顳葉內側，是形成新長期記憶與空間導航記憶的核心結構。"
@@ -742,6 +742,63 @@
         }
 
         const app = new PsychologyQuizApp();
+
+        if (typeof app.clearProgress !== 'function') {
+            app.clearProgress = function() {
+                this.answers = {};
+                this.wrongQIds = new Set();
+                this.bookmarkedQIds = new Set();
+                this.streak = 0;
+                this.currentIndex = 0;
+                this.currentMode = 'sequential';
+                this.activeQuestionList = [...this.questions];
+                this.showToast('已重置所有學習紀錄。');
+                this.updateStats();
+                this.renderGrid();
+                this.showModeSelection();
+            };
+        }
+
+        if (typeof app.filterReview !== 'function') {
+            app.filterReview = function(filter) {
+                this.reviewFilter = filter;
+
+                const tabs = [
+                    document.getElementById('tab-review-all'),
+                    document.getElementById('tab-review-wrong'),
+                    document.getElementById('tab-review-bookmarked')
+                ];
+
+                tabs.forEach(tab => {
+                    if (!tab) return;
+                    tab.classList.remove('bg-indigo-600', 'text-white');
+                    tab.classList.add('text-slate-400');
+                    tab.style.color = '#cbd5e1';
+                });
+
+                const targetTab = {
+                    all: document.getElementById('tab-review-all'),
+                    wrong: document.getElementById('tab-review-wrong'),
+                    bookmarked: document.getElementById('tab-review-bookmarked')
+                }[filter];
+
+                if (targetTab) {
+                    targetTab.classList.add('bg-indigo-600', 'text-white');
+                    targetTab.classList.remove('text-slate-400');
+                    targetTab.style.color = '#ffffff';
+                }
+
+                const container = document.getElementById('review-list-container');
+                if (!container) return;
+                const items = container.querySelectorAll('[data-review-item]');
+                items.forEach(item => {
+                    const match = (filter === 'all') ||
+                        (filter === 'wrong' && item.dataset.reviewWrong === 'true') ||
+                        (filter === 'bookmarked' && item.dataset.reviewBookmarked === 'true');
+                    item.style.display = match ? '' : 'none';
+                });
+            };
+        }
     </script>
 </body>
 </html>
